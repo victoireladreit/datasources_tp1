@@ -1,6 +1,7 @@
 import logging
 from flask import Flask, request, render_template
 from logging.config import dictConfig
+import requests
 
 dictConfig({
     'version': 1,
@@ -20,21 +21,35 @@ dictConfig({
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.route("/", methods=['GET', 'POST'])
 def hello_world():
-    var = """
+    page_content = """
+    <p>Hello, World! :)</p>
     <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-FVQS2TWEVX"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FVQS2TWEVX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
 
-  gtag('config', 'G-FVQS2TWEVX');
-</script>
+      gtag('config', 'G-FVQS2TWEVX');
+    </script>
     """
-    return "<p>Hello, World! :)</p>" + var
 
+    if request.method == 'POST':
+        # Handle the button click to make the request
+        response = requests.get('https://www.google.com')
+        cookies = response.cookies.get_dict()
+        page_content += f"<p>Cookies: {cookies}</p>"
+
+    return (
+        page_content +
+        """
+        <form method="post">
+            <input type="submit" value="Make Request">
+        </form>
+        """
+    )
 
 @app.route("/logger", methods=['GET', 'POST'])
 def logger():
