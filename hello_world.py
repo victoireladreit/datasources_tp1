@@ -37,16 +37,23 @@ def hello_world():
     """
 
     if request.method == 'POST':
-        # Handle the button click to make the request
+        # Request to google and storing cookies
         response = requests.get('https://www.google.com')
         cookies = response.cookies.get_dict()
-        page_content += f"<p>Cookies: {cookies}</p>"
+
+        # Handle the button click to make the request to Google Analytics
+        ganalytics_url = "https://analytics.google.com/analytics/web/#/p407466116/reports/intelligenthome"
+        req2 = requests.get(ganalytics_url)
+        cookies2 = req2.cookies.get_dict()
+        page_content += f"<p>Status Code: {req2.status_code}</p>"
+        page_content += f"<p>Status Code: {cookies2}</p>"
+        page_content += f"<p>Response Text: {req2.text}</p>"
 
     return (
         page_content +
         """
         <form method="post">
-            <input type="submit" value="Make Request">
+            <input type="submit" value="Make Request to Google Analytics">
         </form>
         """
     )
