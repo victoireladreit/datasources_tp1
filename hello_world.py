@@ -1,5 +1,5 @@
 import logging
-from flask import Flask
+from flask import Flask, request, render_template
 from logging.config import dictConfig
 
 dictConfig({
@@ -36,16 +36,13 @@ def hello_world():
     return "<p>Hello, World! :)</p>" + var
 
 
-@app.route("/logger")
+@app.route("/logger", methods=['GET', 'POST'])
 def logger():
-    # display a log on the server side
-    logging.info("Hi ! I am a log on the server side")
-
-    # display a log on the browser side 
-    js_code = """
-    <script>
-        console.log("Hi ! I am a log on the browser side");
-    </script>
-    """
-
-    return "<p>Logging Page</p>" + js_code
+    if request.method == 'POST':
+        # Retrieve the text from the textarea
+        text = request.form.get('textarea')
+  
+        # Print the text in terminal for verification
+        logging.info(text)
+  
+    return render_template('logger.html')
