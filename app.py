@@ -2,6 +2,8 @@ import logging
 from flask import Flask, request, render_template
 from logging.config import dictConfig
 import requests
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 dictConfig({
     'version': 1,
@@ -112,3 +114,36 @@ def logger():
         logging.info(text)
   
     return render_template('logger.html')
+
+@app.route('/fetch-google-analytics-data', methods=['GET'])
+def fetch_google_analytics_data():
+    SCOPES = ['https://www.googleapis.com/auth/analytics.readonly']
+    SERVICE_ACCOUNT_FILE = 'datasources-401318-1df14cce6bc9.json'
+    VIEW_ID = '407466116'
+
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+
+    service = build('analyticsreporting', 'v4', credentials=credentials)
+
+    # Utilisez le client pour accéder aux données de Google Analytics
+    def get_visitor_count(service):
+        # Remplacez 'ga:propertyId' par votre propre ID de propriété
+        response = service.reports().batchGet(
+            body={
+                'reportRequests': [
+                {
+                'viewId': VIEW_ID,
+                'dateRanges': [{'startDate': '7daysAgo', 'endDate': 'today'}],
+                'metrics': [{'expression': 'ga:activeVisitors'}],
+                'dimensions': [{'name': 'ga:medium'}]
+                }]
+            }
+        ).execute()
+        return response
+
+    # Récupérez les informations sur le nombre de visiteurs
+    visitor_data = get_visitor_count(service)
+    visitor_count = visitor_data.get('rows', [])[0][0]
+
+    return f'Nombre de visiteurs actifs : {visitor_count}'

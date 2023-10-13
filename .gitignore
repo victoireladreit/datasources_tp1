@@ -162,5 +162,5 @@ cython_debug/
 
 .pdf
 
-# Ignore python script with credentials
-myGoogleCredentials.py
+# Ignore json with credentials
+datasources-401318-1df14cce6bc9.json
