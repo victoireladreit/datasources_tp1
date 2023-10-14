@@ -119,8 +119,8 @@ def logger():
 @app.route('/fetch-analytics', methods=['GET'])
 def fetch_google_analytics_data():
 
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'datasources-XXX.json'
-    PROPERTY_ID = 'XXXX'
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'datasources-xxxx.json'
+    PROPERTY_ID = 'xxxx'
     starting_date = "8daysAgo"
     ending_date = "yesterday"
 
@@ -136,12 +136,17 @@ def fetch_google_analytics_data():
         response = client.run_report(request)
 
         #TODO: Extract the metric values
-        # response = response["rows"][0]["metricValues"][0]["value"]
+        # response = response.rows
 
         # return active_users_metric
         return response
 
     # Get the visitor count using the function
-    visitor_count = get_visitor_count(client, PROPERTY_ID)
+    response = get_visitor_count(client, PROPERTY_ID)
 
-    return f'Nombre de visiteurs actifs : {visitor_count}'
+    if response and response.row_count > 0:
+        metric_value = response.rows[0].metric_values[0].value
+    else:
+        metric_value = "N/A"  # Handle the case where there is no data
+
+    return f'Number of visitors : {metric_value}'
