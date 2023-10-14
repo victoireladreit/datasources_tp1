@@ -1,9 +1,10 @@
 import logging
+import os
 from flask import Flask, request, render_template
 from logging.config import dictConfig
 import requests
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
+from google.analytics.data_v1beta import BetaAnalyticsDataClient
+from google.analytics.data_v1beta.types import RunReportRequest
 
 dictConfig({
     'version': 1,
@@ -115,35 +116,32 @@ def logger():
   
     return render_template('logger.html')
 
-@app.route('/fetch-google-analytics-data', methods=['GET'])
+@app.route('/fetch-analytics', methods=['GET'])
 def fetch_google_analytics_data():
-    SCOPES = ['https://www.googleapis.com/auth/analytics.readonly']
-    SERVICE_ACCOUNT_FILE = 'datasources-401318-1df14cce6bc9.json'
-    VIEW_ID = '407466116'
 
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'datasources-XXX.json'
+    PROPERTY_ID = 'XXXX'
+    starting_date = "8daysAgo"
+    ending_date = "yesterday"
 
-    service = build('analyticsreporting', 'v4', credentials=credentials)
+    client = BetaAnalyticsDataClient()
+    
+    def get_visitor_count(client, property_id):
+        request = RunReportRequest(
+            property=f"properties/{property_id}",
+            date_ranges=[{"start_date": starting_date, "end_date": ending_date}],
+            metrics=[{"name": "activeUsers"}]
+        )
 
-    # Utilisez le client pour accéder aux données de Google Analytics
-    def get_visitor_count(service):
-        # Remplacez 'ga:propertyId' par votre propre ID de propriété
-        response = service.reports().batchGet(
-            body={
-                'reportRequests': [
-                {
-                'viewId': VIEW_ID,
-                'dateRanges': [{'startDate': '7daysAgo', 'endDate': 'today'}],
-                'metrics': [{'expression': 'ga:activeVisitors'}],
-                'dimensions': [{'name': 'ga:medium'}]
-                }]
-            }
-        ).execute()
+        response = client.run_report(request)
+
+        #TODO: Extract the metric values
+        # response = response["rows"][0]["metricValues"][0]["value"]
+
+        # return active_users_metric
         return response
 
-    # Récupérez les informations sur le nombre de visiteurs
-    visitor_data = get_visitor_count(service)
-    visitor_count = visitor_data.get('rows', [])[0][0]
+    # Get the visitor count using the function
+    visitor_count = get_visitor_count(client, PROPERTY_ID)
 
     return f'Nombre de visiteurs actifs : {visitor_count}'
