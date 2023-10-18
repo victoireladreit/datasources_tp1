@@ -1,15 +1,16 @@
 import base64
+import collections
 from io import BytesIO
 import logging
 import os
-from xmlrpc.client import ResponseError
-from flask import Flask, jsonify, request, render_template
+import time
+from flask import Flask, request, render_template
 from logging.config import dictConfig
 from matplotlib import pyplot as plt
+import numpy as np
 import requests
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import RunReportRequest
-import pytrends
 from pytrends.request import TrendReq
 
 dictConfig({
@@ -125,8 +126,8 @@ def logger():
 @app.route('/fetch-analytics', methods=['GET'])
 def fetch_google_analytics_data():
 
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'datasources-XXX.json'
-    PROPERTY_ID = 'XXX'
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'datasources-xxx.json'
+    PROPERTY_ID = 'xxx'
     starting_date = "90daysAgo"
     ending_date = "yesterday"
 
@@ -181,3 +182,83 @@ def get_google_trends():
     plot_data = base64.b64encode(buffer.read()).decode()
     
     return render_template('trends.html', plot_data=plot_data)
+
+
+# Decorator to measure execution time
+def execution_time_decorator(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        execution_time = end_time - start_time
+        # Log the execution time
+        logging.info(f'{func.__name__} took {execution_time} seconds to execute.')
+        return result, execution_time
+    return wrapper
+
+def count_words_with_dict(text):
+    words = text.split()
+    word_count = {}
+    for word in words:
+        word_count[word] = word_count.get(word, 0) + 1
+    return word_count
+
+def count_words_with_counter(text):
+    words = text.split()
+    word_count = collections.Counter(words)
+    return word_count
+
+@execution_time_decorator
+def count_dict(text):
+    return count_words_with_dict(text)
+        
+@execution_time_decorator
+def count_counter(text):
+    return count_words_with_counter(text)
+
+@app.route('/word_count_experiment', methods=['GET'])
+def word_count_experiment():
+    # Load Shakespeare's text (you can also download it here if needed)
+    with open('shakespeare.txt', 'r') as file:
+        shakespeare_text = file.read()
+
+    # Create lists to store execution times and results
+    execution_times_dict = []
+    execution_times_counter = []
+
+    # Run the experiment 10 times
+    for _ in range(100):
+        result_dict, execution_time_dict = count_dict(shakespeare_text)
+        result_counter, execution_time_counter = count_counter(shakespeare_text)
+
+        execution_times_dict.append((result_dict, execution_time_dict))
+        execution_times_counter.append((result_counter, execution_time_counter))
+
+    # Extract execution times from the results
+    execution_times_dict = [execution_time for _, execution_time in execution_times_dict]
+    execution_times_counter = [execution_time for _, execution_time in execution_times_counter]
+
+    # Calculate the mean and variance for each dataset
+    mean_dict = np.mean(execution_times_dict)
+    variance_dict = np.var(execution_times_dict)
+    mean_counter = np.mean(execution_times_counter)
+    variance_counter = np.var(execution_times_counter)
+
+    # Create a boxplot
+    data = [execution_times_dict, execution_times_counter]
+    labels = ['Using Dictionary\nMean: {:.2f}\nVariance: {:.2f}'.format(mean_dict, variance_dict),
+            'Using Counter\nMean: {:.2f}\nVariance: {:.2f}'.format(mean_counter, variance_counter)]
+
+    plt.boxplot(data, labels=labels)
+    plt.ylabel('Execution Time (seconds)')
+    plt.title('Execution Time Distributions')
+    plt.grid(True)
+
+    # Convert the plot to a bytes object and then to base64 for embedding in a web page
+    buffer = BytesIO()
+    plt.savefig(buffer, format='png')
+    plt.close()
+    buffer.seek(0)
+    plot_data = base64.b64encode(buffer.read()).decode()
+
+    return render_template('word_count_results.html', plot_data=plot_data)
