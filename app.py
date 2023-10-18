@@ -1,10 +1,16 @@
+import base64
+from io import BytesIO
 import logging
 import os
-from flask import Flask, request, render_template
+from xmlrpc.client import ResponseError
+from flask import Flask, jsonify, request, render_template
 from logging.config import dictConfig
+from matplotlib import pyplot as plt
 import requests
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import RunReportRequest
+import pytrends
+from pytrends.request import TrendReq
 
 dictConfig({
     'version': 1,
@@ -119,9 +125,9 @@ def logger():
 @app.route('/fetch-analytics', methods=['GET'])
 def fetch_google_analytics_data():
 
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'datasources-xxxx.json'
-    PROPERTY_ID = 'xxxx'
-    starting_date = "8daysAgo"
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'datasources-XXX.json'
+    PROPERTY_ID = 'XXX'
+    starting_date = "90daysAgo"
     ending_date = "yesterday"
 
     client = BetaAnalyticsDataClient()
@@ -150,3 +156,28 @@ def fetch_google_analytics_data():
         metric_value = "N/A"  # Handle the case where there is no data
 
     return f'Number of visitors : {metric_value}'
+
+
+@app.route('/get_google_trends', methods=['GET'])
+def get_google_trends():
+    pytrends = TrendReq(hl='en-US', tz=360)  # Create a pytrends instance with your preferred settings
+    pytrends.build_payload(kw_list=['sushi', 'pizza'], timeframe='2019-03-01 2020-10-31')
+    data = pytrends.interest_over_time()
+    
+    # Generate a line plot
+    plt.figure(figsize=(10, 4))
+    plt.plot(data.index, data['sushi'], label='Sushi')
+    plt.plot(data.index, data['pizza'], label='Pizza')
+    plt.xlabel('Date')
+    plt.ylabel('Search Interest')
+    plt.title('Google Trends Data')
+    plt.legend()
+
+    # Convert the plot to a bytes object and then to base64 for embedding in a web page
+    buffer = BytesIO()
+    plt.savefig(buffer, format='png')
+    plt.close()
+    buffer.seek(0)
+    plot_data = base64.b64encode(buffer.read()).decode()
+    
+    return render_template('trends.html', plot_data=plot_data)
